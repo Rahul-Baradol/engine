@@ -18,7 +18,7 @@ class ServerEventLoop:
         server.listen()
 
         self.server = server
-        self.register_socket(self.server, self._accept_connection)            
+        self._register_socket(self.server, self._accept_connection)
 
         print(f"Binded to {bind_address}:{bind_port}")
         print("Listening...")
@@ -28,18 +28,27 @@ class ServerEventLoop:
         print(data.decode())
         socket.close()
 
-        self.unregister_socket(socket)
-
-    def enqueue(self, callback):
-        self.tasks.append(callback)
+        self._unregister_socket(socket)
 
     def _accept_connection(self, server_socket):
         try:
             client_socket, client_address = server_socket.accept()    
-            self.register_socket(client_socket, self.handle_connection)
+            self._register_socket(client_socket, self.handle_connection)
         except BlockingIOError:
-            print("Bounce")
             return
+
+    def _enqueue(self, callback):
+            self.tasks.append(callback)
+
+    def _register_socket(self, socket, callback):
+            socket.setblocking(False)
+    
+            self.selector.register(
+                socket, selectors.EVENT_READ, callback
+            )
+    
+    def _unregister_socket(self, socket):
+        self.selector.unregister(socket)
 
     def run(self):
         self.running = True 
@@ -49,7 +58,7 @@ class ServerEventLoop:
 
             while self.timers and (self.timers[0][0] <= now):
                 current = heapq.heappop(self.timers)
-                self.enqueue(current[1])
+                self._enqueue(current[1])
 
             if self.tasks:
                 current_task = self.tasks.popleft()
@@ -69,12 +78,12 @@ class ServerEventLoop:
                 callback = key.data
                 fileobj = key.fileobj
 
-                self.enqueue(
+                self._enqueue(
                     lambda cb = callback, sock = fileobj: cb(sock)
                 )
 
     def stop(self):
-        self.enqueue(
+        self._enqueue(
             lambda: setattr(self, "running", False)
         )
 
@@ -84,14 +93,3 @@ class ServerEventLoop:
         heapq.heappush(self.timers, 
             (next_execute_at, callback)
         )
-
-    def register_socket(self, socket, callback):
-        socket.setblocking(False)
-
-        self.selector.register(
-            socket, selectors.EVENT_READ, callback
-        )
-
-    def unregister_socket(self, socket):
-        self.selector.unregister(socket)
-
