@@ -1,7 +1,12 @@
-from contants import SERVER_BIND_PORT
-from contants import SERVER_BIND_ADDRESS
 from event_loop import EventLoop
 import socket
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+SERVER_BIND_ADDRESS = os.getenv("SERVER_BIND_ADDRESS", "0.0.0.0")
+SERVER_BIND_PORT = int(os.getenv("SERVER_BIND_PORT", 8080))
 
 def build_server():
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
