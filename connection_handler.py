@@ -1,4 +1,3 @@
-from wsgiref import headers
 from protocol import Response
 from command_handler import process_command
 from command_handler import is_command
@@ -13,7 +12,7 @@ def handle_connection(client_socket, loop):
         response = Response("couldn't process request", 500)
         client_socket.sendall(response.build())
     else:
-        response: Response = process_command(request)
+        response: Response = process_command(request, loop)
         client_socket.sendall(response.build())
 
     client_socket.close()
