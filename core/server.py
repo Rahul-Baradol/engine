@@ -1,5 +1,6 @@
-from connection_handler import handle_connection
-from event_loop import EventLoop
+from handlers.connection import handle_connection
+from dtos.connection import Connection
+from core.event_loop import EventLoop
 import socket
 from dotenv import load_dotenv
 import os
@@ -20,7 +21,9 @@ def build_server():
 def setup_loop_for_server(loop: EventLoop, server_socket: socket.socket):
     def server_accept_callback(server_socket: socket.socket):
         client_socket, client_address = server_socket.accept()
-        loop.register_socket(client_socket, lambda socket: handle_connection(socket, loop))
+        
+        connection = Connection(client_socket, client_address)
+        loop.register_socket(client_socket, lambda socket: handle_connection(connection, loop))
 
     loop.register_socket(server_socket, server_accept_callback)
 
