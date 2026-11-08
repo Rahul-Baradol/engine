@@ -16,7 +16,6 @@ def test_concurrent_sets_then_gets():
     assert all(r == (200, "ok") for r in set_results)
     assert get_results == [(200, v) for v in values]
 
-
 def test_concurrent_writes_to_same_key():
     key = unique_key("contended")
     values = [f"writer-{i}" for i in range(CLIENTS)]
@@ -29,7 +28,6 @@ def test_concurrent_writes_to_same_key():
     status, final = get_key(key)
     assert status == 200
     assert final in values
-
 
 def test_concurrent_mixed_commands():
     keys = [unique_key("mixed") for _ in range(CLIENTS)]
