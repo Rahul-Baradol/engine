@@ -1,8 +1,8 @@
+from dtos.response import Response
 import time
-from event_loop import EventLoop
-from protocol import Response
-from protocol import Request
-from memory_store import MemoryStore
+from core.event_loop import EventLoop
+from core.protocol import Request
+from storage.memory_store import MemoryStore
 
 mem_store = MemoryStore()
 
