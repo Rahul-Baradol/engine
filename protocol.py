@@ -31,11 +31,14 @@ class Request:
             elif isinstance(event, h11.Data):
                 body += event.data.decode()
 
-            elif isinstance(event, h11.EndOfMessage):
+            elif isinstance(event, h11.EndOfMessage) or isinstance(event, h11.ConnectionClosed):
                 break
 
-        parsed_body = json.loads(body)
-        return method, headers, parsed_body
+        try:
+            parsed_body = json.loads(body)
+            return method, headers, parsed_body
+        except json.JSONDecodeError:
+            return method, headers, {}
 
     def get_method(self):
         return self.method
