@@ -8,7 +8,6 @@ from client import unique_key, set_key, get_key, delete_key
 TOTAL = 1000
 WORKERS = 200
 
-
 def report(name, results, elapsed):
     successful = sum(results)
     print(f"\n[{name}]")
@@ -18,14 +17,12 @@ def report(name, results, elapsed):
     print(f"Duration: {elapsed:.2f}s")
     print(f"Throughput: {successful / elapsed:.2f} requests/sec")
 
-
 def run(name, fn, n=TOTAL):
     start = time.perf_counter()
     with ThreadPoolExecutor(max_workers=WORKERS) as executor:
         results = list(executor.map(fn, range(n)))
     report(name, results, time.perf_counter() - start)
     return results
-
 
 @pytest.mark.stress
 def test_1000_sets_and_gets():
@@ -46,7 +43,6 @@ def test_1000_sets_and_gets():
     assert all(run("SET", set_one))
     assert all(run("GET", get_one))
 
-
 @pytest.mark.stress
 def test_1000_full_lifecycles():
     prefix = unique_key("lifecycle")
@@ -64,7 +60,6 @@ def test_1000_full_lifecycles():
             return False
 
     assert all(run("SET/GET/DELETE/GET", lifecycle))
-
 
 @pytest.mark.stress
 def test_1000_expiring_keys():
