@@ -1,12 +1,17 @@
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from client import unique_key, set_key, get_key, delete_key
+from client import KeepAliveClient, unique_key, set_key, get_key, delete_key
 
 TOTAL = 1000
 WORKERS = 200
+
+# "close": every request opens a fresh connection with `Connection: close`.
+# "keep-alive": each worker thread reuses one persistent connection.
+MODES = ["close", "keep-alive"]
 
 def report(name, results, elapsed):
     successful = sum(results)
@@ -17,66 +22,83 @@ def report(name, results, elapsed):
     print(f"Duration: {elapsed:.2f}s")
     print(f"Throughput: {successful / elapsed:.2f} requests/sec")
 
-def run(name, fn, n=TOTAL):
+def run(name, mode, fn, n=TOTAL):
+    """Run fn(i, client) for i in range(n); client is None in "close" mode."""
+    local = threading.local()
+    clients = []
+    lock = threading.Lock()
+
+    def client_for_thread():
+        if mode == "close":
+            return None
+        if not hasattr(local, "client"):
+            local.client = KeepAliveClient()
+            with lock:
+                clients.append(local.client)
+        return local.client
+
+    def task(i):
+        try:
+            return fn(i, client_for_thread())
+        except Exception:
+            # A broken keep-alive connection shouldn't poison later requests on this thread.
+            if hasattr(local, "client"):
+                local.client.close()
+                del local.client
+            return False
+
     start = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=WORKERS) as executor:
-        results = list(executor.map(fn, range(n)))
-    report(name, results, time.perf_counter() - start)
+    try:
+        with ThreadPoolExecutor(max_workers=WORKERS) as executor:
+            results = list(executor.map(task, range(n)))
+    finally:
+        for client in clients:
+            client.close()
+
+    report(f"{name} [{mode}]", results, time.perf_counter() - start)
     return results
 
 @pytest.mark.stress
-def test_1000_sets_and_gets():
+@pytest.mark.parametrize("mode", MODES)
+def test_1000_sets_and_gets(mode):
     prefix = unique_key("stress")
 
-    def set_one(i):
-        try:
-            return set_key(f"{prefix}:{i}", f"value-{i}") == (200, "ok")
-        except Exception:
-            return False
+    def set_one(i, client):
+        return set_key(f"{prefix}:{i}", f"value-{i}", client=client) == (200, "ok")
 
-    def get_one(i):
-        try:
-            return get_key(f"{prefix}:{i}") == (200, f"value-{i}")
-        except Exception:
-            return False
+    def get_one(i, client):
+        return get_key(f"{prefix}:{i}", client=client) == (200, f"value-{i}")
 
-    assert all(run("SET", set_one))
-    assert all(run("GET", get_one))
+    assert all(run("SET", mode, set_one))
+    assert all(run("GET", mode, get_one))
 
 @pytest.mark.stress
-def test_1000_full_lifecycles():
+@pytest.mark.parametrize("mode", MODES)
+def test_1000_full_lifecycles(mode):
     prefix = unique_key("lifecycle")
 
-    def lifecycle(i):
+    def lifecycle(i, client):
         key = f"{prefix}:{i}"
-        try:
-            return (
-                set_key(key, str(i)) == (200, "ok")
-                and get_key(key) == (200, str(i))
-                and delete_key(key) == (200, "ok")
-                and get_key(key) == (200, "<none>")
-            )
-        except Exception:
-            return False
+        return (
+            set_key(key, str(i), client=client) == (200, "ok")
+            and get_key(key, client=client) == (200, str(i))
+            and delete_key(key, client=client) == (200, "ok")
+            and get_key(key, client=client) == (200, "<none>")
+        )
 
-    assert all(run("SET/GET/DELETE/GET", lifecycle))
+    assert all(run("SET/GET/DELETE/GET", mode, lifecycle))
 
 @pytest.mark.stress
-def test_1000_expiring_keys():
+@pytest.mark.parametrize("mode", MODES)
+def test_1000_expiring_keys(mode):
     prefix = unique_key("stress-exp")
 
-    def set_one(i):
-        try:
-            return set_key(f"{prefix}:{i}", "temp", expire_after_seconds=1) == (200, "ok")
-        except Exception:
-            return False
+    def set_one(i, client):
+        return set_key(f"{prefix}:{i}", "temp", expire_after_seconds=1, client=client) == (200, "ok")
 
-    def expired(i):
-        try:
-            return get_key(f"{prefix}:{i}") == (200, "<none>")
-        except Exception:
-            return False
+    def expired(i, client):
+        return get_key(f"{prefix}:{i}", client=client) == (200, "<none>")
 
-    assert all(run("SET with expiry", set_one))
-    time.sleep(2)
-    assert all(run("GET after expiry", expired))
+    assert all(run("SET with expiry", mode, set_one))
+    time.sleep(4)
+    assert all(run("GET after expiry", mode, expired))
