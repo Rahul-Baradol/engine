@@ -9,7 +9,7 @@ HTTP2_PREFACE = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 SSH_PREFIX = b"SSH-"
 
-HTTP1_METHODS = {
+HTTP11_METHODS = {
     b"GET",
     b"POST",
     b"PUT",
@@ -21,7 +21,7 @@ HTTP1_METHODS = {
     b"CONNECT",
 }
 
-HTTP1_REQUEST_LINE = re.compile(
+HTTP11_REQUEST_LINE = re.compile(
     rb"^([A-Z]+) ([^\r\n ]+) HTTP/1\.[01]\r\n$"
 )
 
@@ -53,12 +53,12 @@ def detect_application_protocol(connection: Connection) -> ApplicationProtocol |
 
     request_line = buffer[:first_line_end + 2]
 
-    match = HTTP1_REQUEST_LINE.match(request_line)
+    match = HTTP11_REQUEST_LINE.match(request_line)
 
     if match:
         method = match.group(1)
 
-        if method in HTTP1_METHODS:
-            return ApplicationProtocol.HTTP1
+        if method in HTTP11_METHODS:
+            return ApplicationProtocol.HTTP11
         
     return ProtocolParseStatus.UNKNOWN

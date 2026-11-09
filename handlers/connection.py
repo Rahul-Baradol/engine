@@ -5,9 +5,9 @@ from handlers.command import is_command
 from dtos.request import Request
 from protocols.enums import HttpOneParseStatus
 from dtos.request import HttpOneRequest
-from protocols.http1 import parse_http_1
+from protocols.http11 import parse_http_11
 from protocols.enums import ProtocolParseStatus
-from protocols.http1 import build_response
+from protocols.http11 import build_response
 from protocols.enums import ApplicationProtocol
 from protocols.detector import detect_application_protocol
 from core.event_loop import EventLoop
@@ -31,6 +31,20 @@ def did_receive_data_from_socket(connection: Connection) -> bool:
     except ConnectionResetError:
         server_log(LogType.INFO, f"client unexpectedly closed the connection {connection_id}")
         return False
+
+def is_keep_alive(request: Request) -> bool:
+    match request:
+        case HttpOneRequest():
+            headers = request.get_headers()
+            if "connection" not in headers:
+                return True
+            
+            value = headers['connection']
+            return value == 'keep-alive'
+
+        case _:
+            server_log(LogType.ERROR, "couldn't process request: unknown child of Request class")
+            return False
 
 def handle_connection(connection: Connection, loop: EventLoop):
     connection_id = connection.get_connection_id()
@@ -64,8 +78,8 @@ def handle_connection(connection: Connection, loop: EventLoop):
         return
 
     request: Request = None
-    if protocol == ApplicationProtocol.HTTP1:
-        result: HttpOneRequest | ProtocolParseStatus | HttpOneParseStatus = parse_http_1(connection)
+    if protocol == ApplicationProtocol.HTTP11:
+        result: HttpOneRequest | ProtocolParseStatus | HttpOneParseStatus = parse_http_11(connection)
         if result == ProtocolParseStatus.NEED_MORE_DATA:
             server_log(LogType.INFO, f"connection {connection_id} needs more data")
             return
@@ -98,3 +112,10 @@ def handle_connection(connection: Connection, loop: EventLoop):
 
         server_log(LogType.INFO, f"responding to request from connection {connection_id}")
         client_socket.sendall(build_response(response))
+
+    if not is_keep_alive(request):
+        server_log(LogType.INFO, f"closing the connection {connection_id}")
+        client_socket.close()
+
+        server_log(LogType.INFO, f"unregistering the socket of connection {connection_id} from event loop")
+        loop.unregister_socket(client_socket)

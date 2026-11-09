@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 class ApplicationProtocol(Enum):
-    HTTP1 = auto()
+    HTTP11 = auto()
     HTTP2 = auto()
 
 class TransportLayerProtocol(Enum):
