@@ -12,7 +12,7 @@ def is_valid_json(data: str) -> bool:
     except json.JSONDecodeError:
         return False
 
-def parse_http_1(connection: Connection) -> HttpOneRequest | ProtocolParseStatus | HttpOneParseStatus:
+def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatus | HttpOneParseStatus:
     buffer = connection.get_buffer()
     data = buffer.decode('utf-8', errors='replace')
 
