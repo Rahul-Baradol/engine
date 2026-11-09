@@ -1,12 +1,14 @@
 class Request:
-    def __init__(self, data):
-        self.data = data
-        self.method = None
-        self.headers = None
-        self.body = None
+    def __init__(self):
+        pass
 
-    def get_data(self):
-        return self.data
+class HttpOneRequest(Request):
+    def __init__(self, method, path, headers, body):
+        super().__init__()
+        self.method = method
+        self.path = path
+        self.headers = headers
+        self.body = body
 
     def get_method(self):
         return self.method
@@ -16,12 +18,3 @@ class Request:
 
     def get_body(self):
         return self.body
-
-    def set_method(self, method):
-        self.method = method
-
-    def set_headers(self, headers):
-        self.headers = headers
-
-    def set_body(self, body):
-        self.body = body
