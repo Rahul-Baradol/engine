@@ -31,6 +31,9 @@ def process_command(request: Request, loop: EventLoop) -> Response:
         case HttpOneRequest():
             body = request.get_body()
 
+            headers = request.get_headers()
+            print("Headers: ", headers)
+
             response = None
             if body["command"] == "GET":
                 now = time.monotonic()

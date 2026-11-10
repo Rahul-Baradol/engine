@@ -46,6 +46,36 @@ def is_keep_alive(request: Request) -> bool:
             server_log(LogType.ERROR, "couldn't process request: unknown child of Request class")
             return False
 
+def is_options_request(request: Request) -> bool:
+    match request:
+        case HttpOneRequest():
+            method = request.get_method()
+            return method == "OPTIONS"
+
+        case _:
+            server_log(LogType.ERROR, "couldn't process request: unknown child of Request class")
+            return False
+
+def handle_options_request(request: Request) -> Response:
+    match request:
+        case HttpOneRequest():
+            headers = request.get_headers()
+            if "access-control-request-method" not in headers:
+                return Response("missing access-control-request-method header", 400)
+
+            if "access-control-request-headers" not in headers:
+                return Response("missing access-control-request-headers header", 400)
+
+            response_headers = {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": headers["access-control-request-method"],
+                "Access-Control-Allow-Headers": headers["access-control-request-headers"]
+            }
+
+            return Response("", 200, response_headers)
+        case _:
+            return Response("couldn't process request: unknown child of Request class", 500)
+
 def handle_connection(connection: Connection, loop: EventLoop):
     connection_id = connection.get_connection_id()
     client_socket = connection.get_client_socket()
@@ -90,6 +120,7 @@ def handle_connection(connection: Connection, loop: EventLoop):
             or result == HttpOneParseStatus.INVALID_CONTENT_LENGTH 
             or result == HttpOneParseStatus.UNSUPPORTED_CONTENT_TYPE):
             response = Response(result, 400)
+            print("Response: ", result)
             client_socket.sendall(build_response(response))
 
             server_log(LogType.INFO, f"unable to frame incoming request from connection {connection_id}")
@@ -101,6 +132,13 @@ def handle_connection(connection: Connection, loop: EventLoop):
             return
 
         request = result
+
+    if is_options_request(request):
+        response = handle_options_request(request)
+        client_socket.sendall(build_response(response))
+
+        server_log(LogType.INFO, f"responding to OPTIONS request from connection {connection_id}")
+        return
 
     if not is_command(request):
         response = Response("couldn't process request", 400)
