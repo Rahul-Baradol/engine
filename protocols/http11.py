@@ -46,6 +46,7 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
         headers[key] = value
 
     if method == "GET" or method == "OPTIONS":
+        connection.clear_until_index_inclusive(header_data_end_index + 3)
         return HttpOneRequest(
             method,
             path,
@@ -82,6 +83,7 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
 
     parsed_body = json.loads(body)
 
+    connection.clear_until_index_inclusive(body_end_index - 1)
     return HttpOneRequest(
         method,
         path,
