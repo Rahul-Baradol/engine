@@ -20,7 +20,7 @@ def setup_loop_for_server(loop: EventLoop, server_socket: socket.socket):
     def server_accept_callback(server_socket: socket.socket):
         client_socket, client_address = server_socket.accept()
 
-        server_log(LogType.INFO, f"accepted connection from {client_address}")
+        server_log(LogType.INFO, f"accepted tcp connection from {client_address}")
         connection = Connection(TransportLayerProtocol.TLS, client_socket, client_address)
         loop.register_socket(client_socket, lambda socket: handle_connection(connection, loop))
 

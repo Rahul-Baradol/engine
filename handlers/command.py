@@ -21,7 +21,7 @@ def is_command(request: Request):
         case _:
             return False
 
-def delete_key(key):
+def expire_key(key):
     now = time.monotonic()
     mem_store.delete(key)
     server_log(LogType.INFO, f"EXPIRED {key} at {now}")
@@ -30,9 +30,6 @@ def process_command(request: Request, loop: EventLoop) -> Response:
     match request:
         case HttpOneRequest():
             body = request.get_body()
-
-            headers = request.get_headers()
-            print("Headers: ", headers)
 
             response = None
             if body["command"] == "GET":
@@ -54,7 +51,7 @@ def process_command(request: Request, loop: EventLoop) -> Response:
                 mem_store.delete(body["key"])
                 response = Response('ok', 200)
             elif body["command"] == "EXPIRE":
-                loop.call_later(body["seconds_after"], lambda: delete_key(body["key"]))
+                loop.call_later(body["seconds_after"], lambda: expire_key(body["key"]))
                 response = Response('ok', 200)
 
             return response

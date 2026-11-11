@@ -16,8 +16,6 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
     buffer = connection.get_buffer()
     data = buffer.decode('utf-8', errors='replace')
 
-    print("Data received from connection: ", data)
-
     header_end = data.find('\r\n\r\n')
 
     if header_end == -1:

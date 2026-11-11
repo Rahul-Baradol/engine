@@ -95,7 +95,7 @@ def handle_connection(connection: Connection, loop: EventLoop):
         return
     
     if protocol == ProtocolParseStatus.UNKNOWN or protocol == ProtocolParseStatus.UNSUPPORTED:
-        type = "unsupported" if protocol == ProtocolParseStatus.UNSUPPORTED else "unknown"
+        type = protocol.name
         response = Response(f"{type} protocol", 400)
         client_socket.sendall(build_response(response))
 
@@ -120,7 +120,6 @@ def handle_connection(connection: Connection, loop: EventLoop):
             or result == HttpOneParseStatus.INVALID_CONTENT_LENGTH 
             or result == HttpOneParseStatus.UNSUPPORTED_CONTENT_TYPE):
             response = Response(result, 400)
-            print("Response: ", result)
             client_socket.sendall(build_response(response))
 
             server_log(LogType.INFO, f"unable to frame incoming request from connection {connection_id}")
