@@ -21,7 +21,7 @@ def is_command(request: Request):
         case _:
             return False
 
-def expire_key(key):
+def delete_key(key):
     now = time.monotonic()
     mem_store.delete(key)
     server_log(LogType.INFO, f"EXPIRED {key} at {now}")
@@ -46,15 +46,15 @@ def process_command(request: Request, loop: EventLoop) -> Response:
                 server_log(LogType.INFO, f"SET \"{body['key']} = {body['value']}\" at {now}")
                 mem_store.set(body["key"], body["value"])
 
-                if "expire_after_seconds" in body:
-                    loop.call_later(body["expire_after_seconds"], lambda: expire_key(body["key"]))
-
                 response = Response('ok', 200)
             elif body["command"] == "DELETE":
                 now = time.monotonic()
                 server_log(LogType.INFO, f"DELETE \"{body['key']}\" at {now}")
 
                 mem_store.delete(body["key"])
+                response = Response('ok', 200)
+            elif body["command"] == "EXPIRE":
+                loop.call_later(body["seconds_after"], lambda: delete_key(body["key"]))
                 response = Response('ok', 200)
 
             return response
