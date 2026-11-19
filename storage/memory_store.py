@@ -1,8 +1,10 @@
+from custom_types.value import Value
+
 class MemoryStore:
     def __init__(self):
-        self.store = dict()
+        self.store = dict[str, Value]()
 
-    def get(self, key):
+    def get(self, key) -> Value:
         if key not in self.store:
             return '<none>'
         return self.store[key]
