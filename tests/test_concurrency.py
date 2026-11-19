@@ -1,7 +1,7 @@
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from client import unique_key, set_key, get_key, delete_key
+from client import expire_key, unique_key, set_key, get_key, delete_key
 
 CLIENTS = 100
 
@@ -53,11 +53,16 @@ def test_concurrent_expiries():
 
     with ThreadPoolExecutor(max_workers=CLIENTS) as executor:
         results = list(executor.map(
-            lambda k: set_key(k, "temp", expire_after_seconds=0.5), keys
+            lambda k: set_key(k, "temp"), keys
         ))
         assert all(r == (200, "ok") for r in results)
 
-        time.sleep(1)
+        expires = list(executor.map(
+            lambda k: expire_key(k, seconds_after=1), keys
+        ))
+        assert all(r == (200, "ok") for r in expires)
+
+        time.sleep(3)
 
         after = list(executor.map(get_key, keys))
 

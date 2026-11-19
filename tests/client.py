@@ -111,14 +111,15 @@ class KeepAliveClient:
 def _send(payload, client):
     return client.send(payload) if client is not None else send(payload)
 
-def set_key(key, value, expire_after_seconds=None, client=None):
+def set_key(key, value, client=None):
     payload = {"command": "SET", "key": key, "value": value}
-    if expire_after_seconds is not None:
-        payload["expire_after_seconds"] = expire_after_seconds
     return _send(payload, client)
 
 def get_key(key, client=None):
     return _send({"command": "GET", "key": key}, client)
+
+def expire_key(key, seconds_after=None, client=None):
+    return _send({"command": "EXPIRE", "key": key, "seconds_after": seconds_after}, client)
 
 def delete_key(key, client=None):
     return _send({"command": "DELETE", "key": key}, client)
