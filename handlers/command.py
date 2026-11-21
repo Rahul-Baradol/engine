@@ -30,7 +30,7 @@ def expire_key(key, expire_time):
         mem_store.delete(key)
         server_log(LogType.INFO, f"EXPIRED {key} at {now}")
     else:
-        server_log(LogType.INFO, f"EXPIRE triggered for {key} at {now}; ignoring bcuz value hashes don't match")
+        server_log(LogType.INFO, f"EXPIRE triggered for {key} at {now}; ignoring bcuz generation times don't match")
 
 def process_command(request: Request, loop: EventLoop) -> Response:
     match request:
