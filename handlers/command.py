@@ -6,6 +6,7 @@ from dtos.response import Response
 import time
 from core.event_loop import EventLoop
 from storage.memory_store import MemoryStore
+from custom_types.value import Value
 
 mem_store = MemoryStore()
 
@@ -21,10 +22,15 @@ def is_command(request: Request):
         case _:
             return False
 
-def expire_key(key):
+def expire_key(key, expire_time):
     now = time.monotonic()
-    mem_store.delete(key)
-    server_log(LogType.INFO, f"EXPIRED {key} at {now}")
+    current_value: Value = mem_store.get(key)
+
+    if current_value.get_gen_time() <= expire_time:
+        mem_store.delete(key)
+        server_log(LogType.INFO, f"EXPIRED {key} at {now}")
+    else:
+        server_log(LogType.INFO, f"EXPIRE triggered for {key} at {now}; ignoring bcuz value hashes don't match")
 
 def process_command(request: Request, loop: EventLoop) -> Response:
     match request:
@@ -37,14 +43,17 @@ def process_command(request: Request, loop: EventLoop) -> Response:
                 server_log(LogType.INFO, f"GET \"{body['key']}\" at {now}")
 
                 value = mem_store.get(body["key"])
-                response = Response(value, 200)
+
+                if not isinstance(value, Value):
+                    response = Response(value, 404)
+                else:
+                    response = Response(value.get_value(), 200)
             elif body["command"] == "SET":
                 now = time.monotonic()
                 server_log(LogType.INFO, f"SET \"{body['key']} = {body['value']}\" at {now}")
-                mem_store.set(body["key"], body["value"])
 
-                if "expire_after_seconds" in body:
-                    loop.call_later(body["expire_after_seconds"], lambda: expire_key(body["key"]))
+                new_value = Value(body["value"])
+                mem_store.set(body["key"], new_value)
 
                 response = Response('ok', 200)
             elif body["command"] == "DELETE":
@@ -52,6 +61,10 @@ def process_command(request: Request, loop: EventLoop) -> Response:
                 server_log(LogType.INFO, f"DELETE \"{body['key']}\" at {now}")
 
                 mem_store.delete(body["key"])
+                response = Response('ok', 200)
+            elif body["command"] == "EXPIRE":   
+                expire_time = time.monotonic()
+                loop.call_later(body["seconds_after"], lambda: expire_key(body["key"], expire_time))
                 response = Response('ok', 200)
 
             return response

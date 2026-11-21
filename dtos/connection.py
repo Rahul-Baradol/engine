@@ -11,6 +11,9 @@ class Connection:
         
     def add_to_buffer(self, data):
         self.buffer.extend(data)
+
+    def clear_until_index_inclusive(self, index):
+        self.buffer = self.buffer[index+1:]
     
     def get_buffer(self):
         return self.buffer

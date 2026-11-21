@@ -27,7 +27,7 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
 
     request_line_items = request_line.split(' ')
     method = request_line_items[0]
-    path= request_line_items[1]
+    path = request_line_items[1]
 
     header_data_end_index = data.find('\r\n\r\n')
     if header_data_end_index == -1:
@@ -42,6 +42,15 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
         key: str = header_line[:colon].strip().lower()
         value: str = header_line[colon+1:].strip()
         headers[key] = value
+
+    if method == "GET" or method == "OPTIONS":
+        connection.clear_until_index_inclusive(header_data_end_index + 3)
+        return HttpOneRequest(
+            method,
+            path,
+            headers,
+            None
+        )
 
     if 'content-length' not in headers:
         return HttpOneParseStatus.MISSING_CONTENT_LENGTH
@@ -72,6 +81,7 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
 
     parsed_body = json.loads(body)
 
+    connection.clear_until_index_inclusive(body_end_index - 1)
     return HttpOneRequest(
         method,
         path,
@@ -80,11 +90,14 @@ def parse_http_11(connection: Connection) -> HttpOneRequest | ProtocolParseStatu
     )
 
 def build_response(response: Response):
+    headers = "".join(f"{key}: {value}\r\n" for key, value in response.get_headers().items())
+
     response = (
         f"HTTP/1.1 {response.get_status()}\r\n"
         "Content-Type: text/plain; charset=utf-8\r\n"
         f"Content-Length: {len(response.get_body().encode('utf-8'))}\r\n"
         "Connection: close\r\n"
+        f"{headers}"
         "\r\n"
         f"{response.get_body()}"
     )
